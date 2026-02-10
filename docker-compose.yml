@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  ralph:
+    build: .
+    volumes:
+      - ./:/workspace
+      - ~/.ssh:/root/.ssh:ro  # For git operations (read-only)
+    environment:
+      - GLM_API_KEY=${GLM_API_KEY}
+      - GLM_API_BASE=${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
+      - GLM_MODEL=${GLM_MODEL:-glm-4.7}
+      - GLM_MODE=${GLM_MODE:-api}  # 'api' or 'local'
+      - GLM_LOCAL_PATH=${GLM_LOCAL_PATH}  # Path if mode is local
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-0}
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: ["bash", "-c", "chmod +x loop.sh && ./loop.sh ${MODE} ${MAX_ITERATIONS}"]
