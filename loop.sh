@@ -1,49 +1,174 @@
 #!/bin/bash
-# Ralph Loop Script - Docker-based with GLM-4.7
-# Usage: ./loop.sh [planning|building|qa] [max_iterations]
+# Ralph Loop Script - Native GLM-4.7 Agent
+# Usage: ./loop.sh [planning|building|qa|test] [max_iterations]
 #
 # Examples:
 #   ./loop.sh planning          # Planning mode, unlimited iterations
 #   ./loop.sh building 20       # Building mode, max 20 iterations
 #   ./loop.sh qa 5              # QA mode, max 5 iterations
 #   ./loop.sh                   # Default: building mode, unlimited
+#   ./loop.sh test              # Test GLM-4.7 setup (no iteration)
 
 set -e
+
+# Load .env file if it exists
+if [ -f .env ]; then
+    while IFS= read -r line; do
+        # Skip comments and empty lines
+        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "$line" ]]; then
+            continue
+        fi
+        # Export variables that have = in them
+        if [[ "$line" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]+= ]]; then
+            export "$line"
+        fi
+    done < .env
+fi
 
 # Color output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+# Function to test GLM-4.7 agent setup (defined early to be available for early exit)
+test_glm47_setup() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}Testing GLM-4.7 Agent Setup${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    # Test 1: Python availability
+    echo -e "${YELLOW}Test 1: Checking Python...${NC}"
+    if command -v python3 &>/dev/null 2>&1; then
+        echo -e "${GREEN}✓ Python3 is installed${NC}"
+        echo -e "  Version: $(python3 --version 2>&1)"
+    else
+        echo -e "${RED}✗ Python3 is not found${NC}"
+        return 1
+    fi
+    echo ""
+    
+    # Test 2: GLM-4.7 agent script
+    echo -e "${YELLOW}Test 2: Checking GLM-4.7 agent...${NC}"
+    if [ -f "glm47_agent.py" ]; then
+        echo -e "${GREEN}✓ glm47_agent.py found${NC}"
+    else
+        echo -e "${RED}✗ glm47_agent.py not found${NC}"
+        return 1
+    fi
+    echo ""
+    
+    # Test 3: API key
+    echo -e "${YELLOW}Test 3: Checking API key...${NC}"
+    if [ -z "$OPENCODE_API_KEY" ] || [ "$OPENCODE_API_KEY" = "your_api_key_here" ]; then
+        echo -e "${RED}✗ OPENCODE_API_KEY is not set${NC}"
+        echo -e "  Get your Z.AI API key"
+        return 1
+    else
+        echo -e "${GREEN}✓ API key is set${NC}"
+        echo -e "  Key: ${OPENCODE_API_KEY:0:15}... (first 15 chars)"
+    fi
+    echo ""
+    
+    # Test 4: Prompt file
+    echo -e "${YELLOW}Test 4: Checking prompt file...${NC}"
+    if [ -f "$PROMPT_FILE" ]; then
+        echo -e "${GREEN}✓ Prompt file exists: $PROMPT_FILE${NC}"
+        CONTENT=$(cat "$PROMPT_FILE")
+        if [ -n "$CONTENT" ]; then
+            echo -e "${GREEN}✓ Prompt file has content (${#CONTENT} chars)${NC}"
+        else
+            echo -e "${RED}✗ Prompt file is empty${NC}"
+            return 1
+        fi
+    else
+        echo -e "${YELLOW}⚠ Prompt file not found: $PROMPT_FILE${NC}"
+        echo -e "  It will be auto-generated"
+    fi
+    echo ""
+    
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}All tests passed! Setup looks good.${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    return 0
+}
+
+# Function to run native GLM-4.7 agent
+run_native_glm47() {
+    local prompt="$1"
+    
+    echo -e "${BLUE}→ Running GLM-4.7 Native Agent${NC}"
+    echo -e "  Agent: glm47_agent.py"
+    echo -e "  Mode: ${MODE}"
+    
+    # Check if agent script exists
+    if [ ! -f "glm47_agent.py" ]; then
+        echo -e "${RED}ERROR: glm47_agent.py not found${NC}"
+        echo -e "  Make sure it's in the same directory as loop.sh"
+        return 1
+    fi
+    
+    # Run agent with prompt
+    if python3 glm47_agent.py "$prompt" 2>&1; then
+        echo -e "${GREEN}✓ Native agent completed successfully${NC}"
+        return 0
+    else
+        echo -e "${RED}✗ Native agent failed with exit code $?${NC}"
+        return 1
+    fi
+}
+
 
 # Parse arguments
 if [ -z "$1" ]; then
     MODE="building"
-    PROMPT_FILE="PROMPT_building.md"
+    PROMPT_FILE="prompts/PROMPT_building.md"
     MAX_ITERATIONS=${2:-0}
-elif [ "$1" = "planning" ] || [ "$1" = "building" ] || [ "$1" = "qa" ]; then
+elif [ "$1" = "planning" ] || [ "$1" = "building" ] || [ "$1" = "qa" ] || [ "$1" = "test" ]; then
     MODE="$1"
-    PROMPT_FILE="PROMPT_${MODE}.md"
+    PROMPT_FILE="prompts/PROMPT_${MODE}.md"
     MAX_ITERATIONS=${2:-0}
 elif [[ "$1" =~ ^[0-9]+$ ]]; then
     MODE="building"
-    PROMPT_FILE="PROMPT_building.md"
+    PROMPT_FILE="prompts/PROMPT_building.md"
     MAX_ITERATIONS=$1
 else
     echo "Unknown mode: $1"
-    echo "Usage: $0 [planning|building|qa] [max_iterations]"
+    echo "Usage: $0 [planning|building|qa|test] [max_iterations]"
     exit 1
 fi
 
-# Environment configuration
-GLM_MODE=${GLM_MODE:-api}
-GLM_MODEL=${GLM_MODEL:-glm-4.7}
+# Check if API key is set
+if [ -z "$OPENCODE_API_KEY" ] || [ "$OPENCODE_API_KEY" = "your_api_key_here" ]; then
+    echo -e "${RED}ERROR: OPENCODE_API_KEY is not set!${NC}"
+    echo -e "${YELLOW}Please set it in .env file or as environment variable${NC}"
+    echo -e "${YELLOW}Get your Z.AI API key from the Z.AI platform${NC}"
+    echo ""
+    echo -e "${BLUE}Current env:${NC}"
+    echo -e "  OPENCODE_API_KEY: ${OPENCODE_API_KEY:0:15} (empty or placeholder)"
+    exit 1
+fi
 
-# Determine CLI command based on mode
-if [ "$GLM_MODE" = "local" ]; then
-    CLI_CMD="glm-cli --local --model-path $GLM_LOCAL_PATH"
-else
-    CLI_CMD="glm-cli --api"
+# Check if Python is installed
+if ! command -v python3 &>/dev/null 2>&1; then
+    echo -e "${RED}ERROR: Python3 is not installed!${NC}"
+    echo -e "${YELLOW}Please rebuild Docker image: docker-compose build${NC}"
+    exit 1
+fi
+
+# Check if GLM-4.7 agent exists
+if [ ! -f "glm47_agent.py" ]; then
+    echo -e "${RED}ERROR: glm47_agent.py not found!${NC}"
+    echo -e "${YELLOW}Please ensure glm47_agent.py is in the project directory${NC}"
+    exit 1
+fi
+
+# Check if user wants to run tests
+if [ "$1" = "test" ]; then
+    test_glm47_setup
+    exit $?
 fi
 
 ITERATION=0
@@ -55,10 +180,18 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "Mode:           ${YELLOW}$MODE${NC}"
 echo -e "Prompt File:    $PROMPT_FILE"
 echo -e "Branch:         $CURRENT_BRANCH"
-echo -e "GLM Model:      $GLM_MODEL"
-echo -e "GLM Mode:       $GLM_MODE"
 [ $MAX_ITERATIONS -gt 0 ] && echo -e "Max Iterations: $MAX_ITERATIONS"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Print diagnostic information
+echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}System Diagnostics${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "Working Directory: $(pwd)"
+echo -e "GLM-4.7 Agent: $([ -f glm47_agent.py ] && echo 'Found' || echo 'Not found')"
+echo -e "Python Version: $(python3 --version 2>&1 || echo 'Not found')"
+echo -e "Git Version: $(git --version 2>&1 || echo 'Not found')"
+echo ""
 
 # Verify prompt file exists
 if [ ! -f "$PROMPT_FILE" ]; then
@@ -81,20 +214,18 @@ while true; do
     echo -e "\n${BLUE}======================== ITERATION $ITERATION ========================${NC}"
     echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} Starting iteration..."
     
-    # Run Ralph iteration with GLM-4.7
-    # Flags:
-    #   -p: Headless mode (non-interactive, reads from stdin)
-    #   --dangerously-skip-permissions: Auto-approve all tool calls
-    #   --model: Use GLM-4.7
-    #   --verbose: Detailed execution logging
-    if cat "$PROMPT_FILE" | $CLI_CMD \
-        --dangerously-skip-permissions \
-        --model "$GLM_MODEL" \
-        --verbose; then
-        
+    # Run Ralph iteration with GLM-4.7 native agent
+    # Read prompt file content
+    PROMPT_CONTENT=$(cat "$PROMPT_FILE")
+    
+    # Run native agent
+    run_native_glm47 "$PROMPT_CONTENT"
+    EXIT_CODE=$?
+    
+    if [ $EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Iteration $ITERATION completed successfully${NC}"
     else
-        echo -e "${YELLOW}⚠ Iteration $ITERATION failed with exit code $?${NC}"
+        echo -e "${RED}✗ Iteration $ITERATION failed with exit code $EXIT_CODE${NC}"
         echo -e "${YELLOW}Loop will continue to next iteration${NC}"
     fi
     
@@ -210,3 +341,4 @@ EOF
             ;;
     esac
 }
+

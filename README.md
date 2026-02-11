@@ -1,12 +1,12 @@
-# Ralph Loop - GLM-4.7 Docker Implementation
+# Ralph Loop - Native GLM-4.7 Implementation
 
-Autonomous AI-driven development using the Ralph Wiggum technique with GLM-4.7 and Docker.
+Autonomous AI-driven development using Ralph Wiggum technique with native GLM-4.7 and Docker.
 
 **🚀 Quick Summary:** Write specs in `specs/*.md` → Run `./loop.sh planning` to generate plan → Run `./loop.sh building` to implement → Run `./loop.sh qa` to validate. Repeat as needed.
 
 **✨ Features:**
 - Three independent commands: `planning`, `building`, `qa`
-- GLM-4.7 integration (API or local mode)
+- Native GLM-4.7 integration (direct API calls)
 - Docker isolation for safe autonomous execution
 - Auto-updates `improvements.md` with progress
 - Auto-generates implementation plans
@@ -17,7 +17,7 @@ Autonomous AI-driven development using the Ralph Wiggum technique with GLM-4.7 a
 1. **Configure Environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your GLM_API_KEY
+   # Edit .env with your OPENCODE_API_KEY (Z.AI direct API key)
    ```
 
 2. **Initialize Git Repository**
@@ -35,17 +35,29 @@ Autonomous AI-driven development using the Ralph Wiggum technique with GLM-4.7 a
 
 4. **Run Ralph Loop**
    ```bash
-   # Option 1: Run inside Docker container
+   # Run inside Docker container
    docker-compose exec ralph bash
    ./loop.sh planning     # Generate implementation plan
    ./loop.sh building      # Build the application
    ./loop.sh qa            # Quality assurance
 
-   # Option 2: Run directly via docker-compose
+   # Or run directly via docker-compose
    MODE=planning docker-compose up ralph
    MODE=building MAX_ITERATIONS=20 docker-compose up ralph
    MODE=qa docker-compose up ralph
    ```
+
+## Running Locally (Without Docker)
+
+```bash
+# Set environment variables
+export OPENCODE_API_KEY=your_key_here
+
+# Run the loop
+./loop.sh planning
+./loop.sh building 20
+./loop.sh qa
+```
 
 ## Detailed Usage
 
@@ -162,15 +174,9 @@ Repeat the cycle:
 
 ## Running Locally (Without Docker)
 
-If you have GLM-4.7 CLI installed locally:
-
 ```bash
-# Install GLM-4.7 CLI
-npm install -g @zhipuai/glm-cli
-
 # Set environment variables
-export GLM_API_KEY=your_key_here
-export GLM_MODEL=glm-4.7
+export OPENCODE_API_KEY=your_key_here
 
 # Run the loop
 ./loop.sh planning
@@ -201,7 +207,7 @@ Full quality gate: tests, code review, security, performance.
 ## Project Structure
 
 - `loop.sh` - Main loop script
-- `PROMPT_*.md` - Mode-specific instructions
+- `prompts/PROMPT_*.md` - Mode-specific instructions
 - `agents.md` - Operational guide (build/test commands)
 - `improvements.md` - State tracking log
 - `specs/*.md` - Application specifications
@@ -218,17 +224,14 @@ Full quality gate: tests, code review, security, performance.
 
 ## GLM-4.7 Configuration
 
-- **Default**: API mode (requires GLM_API_KEY)
-- **Local mode**: Set `GLM_MODE=local` and provide `GLM_LOCAL_PATH`
-- **Model**: Configure `GLM_MODEL` (default: glm-4.7)
+- **Model**: Native GLM-4.7 via Z.AI direct API
+- **API Key**: Your Z.AI direct API key
+- **Endpoint**: https://api.z.ai/api/coding/paas/v4/chat/completions
 
 Environment variables in `.env`:
 ```bash
-GLM_API_KEY=your_api_key_here
-GLM_API_BASE=https://open.bigmodel.cn/api/paas/v4/
-GLM_MODEL=glm-4.7
-GLM_MODE=api  # 'api' or 'local'
-GLM_LOCAL_PATH=/path/to/local/model  # Only if mode is 'local'
+OPENCODE_API_KEY=your_api_key_here
+USE_NATIVE_GLM=true
 ```
 
 ## Key Files
@@ -295,20 +298,19 @@ docker-compose build --no-cache
 sudo chown -R $USER:$USER .
 ```
 
-### GLM-4.7 Issues
+### API Issues
 
 **Q: API key errors**
-- Verify `GLM_API_KEY` in `.env` is correct
+- Verify `OPENCODE_API_KEY` in `.env` is correct
 - Check API key is valid and has credits
-- Verify `GLM_API_BASE` endpoint is correct
+- Ensure you're using a direct Z.AI API key
 
-**Q: GLM-4.7 CLI not found**
+**Q: GLM-4.7 agent not found**
 ```bash
-# Rebuild Docker image
-docker-compose build
+# Check glm47_agent.py exists
+ls -la glm47_agent.py
 
-# Or install locally
-npm install -g @zhipuai/glm-cli
+# If missing, pull from repository or recreate
 ```
 
 ### Loop Issues
@@ -420,7 +422,7 @@ cat IMPLEMENTATION_PLAN.md
 
 - [Ralph Wiggum Technique](https://ghuntley.com/ralph/)
 - [Docker Documentation](https://docs.docker.com/)
-- [GLM-4.7 API Documentation](https://open.bigmodel.cn/dev/api)
+- [Z.AI API Documentation](https://open.bigmodel.cn/dev/api)
 
 ## License
 

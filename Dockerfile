@@ -1,18 +1,34 @@
 # Multi-runtime base image with both Node.js and Python
-FROM node:20-bullseye
+FROM node:20-bookworm-slim
 
-# Install Python 3.12
+# Install build dependencies for Python
 RUN apt-get update && apt-get install -y \
-    python3.12 \
-    python3-pip \
+    wget \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symbolic links for python/python3
-RUN ln -s /usr/bin/python3.12 /usr/bin/python
+# Install Python 3.12 from source
+RUN wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz \
+    && tar -xzf Python-3.12.0.tgz \
+    && cd Python-3.12.0 \
+    && ./configure --enable-optimizations \
+    && make -j$(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf Python-3.12.0 Python-3.12.0.tgz
 
-# Install GLM-4.7 CLI tool
-RUN npm install -g @zhipuai/glm-cli
+# Create symbolic links for python/python3
+RUN ln -sf /usr/local/bin/python3.12 /usr/bin/python \
+    && ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 \
+    && ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip \
+    && ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip3
 
 # Set working directory
 WORKDIR /workspace

@@ -15,7 +15,6 @@ This file tracks what was built, the state of the application, and important inf
 - Created project structure
 - Set up Docker environment
 - Configured GLM-4.7 integration
-
 ---
 
 ## Iterations

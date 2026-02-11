@@ -6,11 +6,9 @@ services:
       - ./:/workspace
       - ~/.ssh:/root/.ssh:ro  # For git operations (read-only)
     environment:
-      - GLM_API_KEY=${GLM_API_KEY}
-      - GLM_API_BASE=${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4/}
-      - GLM_MODEL=${GLM_MODEL:-glm-4.7}
-      - GLM_MODE=${GLM_MODE:-api}  # 'api' or 'local'
-      - GLM_LOCAL_PATH=${GLM_LOCAL_PATH}  # Path if mode is local
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
+      - OPENCODE_MODEL=${OPENCODE_MODEL:-zai/glm-4.7}
+      - OPENCODE_PERMISSION=${OPENCODE_PERMISSION:-allow}
       - MAX_ITERATIONS=${MAX_ITERATIONS:-0}
     working_dir: /workspace
     stdin_open: true
