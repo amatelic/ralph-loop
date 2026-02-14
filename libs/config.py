@@ -7,20 +7,20 @@ Handles environment variables and provider instantiation.
 import os
 from typing import Dict, Optional, Type
 from libs.providers.base import BaseProvider
-from libs.providers.glm47 import GLM47Provider
+from libs.providers.glm import GLMProvider
 from libs.providers.claude import ClaudeProvider
 from libs.providers.codex import CodexProvider
 from libs.providers.kimmy_k2 import KimmyK2Provider
 
 
 PROVIDER_REGISTRY: Dict[str, Type[BaseProvider]] = {
-    "glm47": GLM47Provider,
+    "glm": GLMProvider,
     "claude": ClaudeProvider,
     "codex": CodexProvider,
     "kimmy_k2": KimmyK2Provider,
 }
 
-DEFAULT_PROVIDER = "glm47"
+DEFAULT_PROVIDER = "glm"
 
 
 class Config:
@@ -38,7 +38,7 @@ class Config:
     def get_api_key(self, provider: str) -> Optional[str]:
         """Get API key for a specific provider."""
         key_map = {
-            "glm47": self.opencode_api_key,
+            "glm": self.opencode_api_key,
             "claude": self.anthropic_api_key,
             "codex": self.openai_api_key,
             "kimmy_k2": self.kimmy_k2_api_key,
@@ -64,7 +64,7 @@ class Config:
         api_key = self.get_api_key(self.provider)
         if not api_key or api_key == "your_api_key_here":
             key_names = {
-                "glm47": "OPENCODE_API_KEY",
+                "glm": "OPENCODE_API_KEY",
                 "claude": "ANTHROPIC_API_KEY",
                 "codex": "OPENAI_API_KEY",
                 "kimmy_k2": "KIMMY_K2_API_KEY",
@@ -84,7 +84,7 @@ def get_provider(
     Factory function to create a provider instance.
     
     Args:
-        provider_name: Provider name (glm47, claude, codex, kimmy_k2)
+        provider_name: Provider name (glm, claude, codex, kimmy_k2)
         api_key: API key for the provider
         model: Model override
         **kwargs: Additional provider-specific options
@@ -110,7 +110,7 @@ def get_provider(
     
     if not api_key or api_key == "your_api_key_here":
         key_names = {
-            "glm47": "OPENCODE_API_KEY",
+            "glm": "OPENCODE_API_KEY",
             "claude": "ANTHROPIC_API_KEY",
             "codex": "OPENAI_API_KEY",
             "kimmy_k2": "KIMMY_K2_API_KEY",
@@ -120,6 +120,9 @@ def get_provider(
             f"Set {key_names[provider_name]} environment variable or pass api_key parameter."
         )
     
+    if not model:
+        model = config.model or None
+    
     provider_class = PROVIDER_REGISTRY[provider_name]
     return provider_class(api_key=api_key, model=model, **kwargs)
 
@@ -127,7 +130,7 @@ def get_provider(
 def list_providers() -> Dict[str, str]:
     """Return available providers and their descriptions."""
     return {
-        "glm47": "GLM-4.7 via Z.AI API (default)",
+        "glm": "GLM (glm-4.7, glm-5) via Z.AI API (default)",
         "claude": "Anthropic Claude via Anthropic API",
         "codex": "OpenAI GPT-4/Codex via OpenAI API",
         "kimmy_k2": "Kimmy K2 (placeholder - API details TBD)",

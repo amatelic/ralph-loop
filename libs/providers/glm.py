@@ -1,7 +1,7 @@
 """
-GLM-4.7 Provider
+GLM Provider
 
-Implements the Z.AI GLM-4.7 API.
+Implements the Z.AI GLM API (supports glm-4.7, glm-5, etc).
 """
 
 import json
@@ -12,12 +12,13 @@ from typing import Dict, Any, List, Optional
 from libs.providers.base import BaseProvider, ProviderError
 
 
-class GLM47Provider(BaseProvider):
-    """GLM-4.7 provider via Z.AI API."""
+class GLMProvider(BaseProvider):
+    """GLM provider via Z.AI API (supports glm-4.7, glm-5)."""
     
-    name = "glm47"
+    name = "glm"
     default_model = "glm-4.7"
     default_base_url = "https://api.z.ai/api/coding/paas/v4"
+    max_output_tokens = 32768
     
     def __init__(
         self,
@@ -33,10 +34,13 @@ class GLM47Provider(BaseProvider):
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 0.7,
-        max_tokens: int = 8192,
+        max_tokens: int = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Send chat completion request to GLM-4.7 API."""
+        """Send chat completion request to GLM API."""
+        
+        if max_tokens is None:
+            max_tokens = self.max_output_tokens
         
         url = f"{self.base_url}/chat/completions"
         
@@ -68,15 +72,18 @@ class GLM47Provider(BaseProvider):
                 result = json.loads(response_data)
                 
                 if "choices" in result and len(result["choices"]) > 0:
-                    content = result["choices"][0].get("message", {}).get("content", "")
+                    message = result["choices"][0].get("message", {})
+                    content = message.get("content", "")
+                    reasoning = message.get("reasoning_content", "")
                     return {
                         "content": content,
+                        "reasoning": reasoning,
                         "raw": result,
                         "model": self.model
                     }
                 else:
                     raise ProviderError(
-                        "No response from GLM-4.7",
+                        "No response from GLM",
                         provider=self.name,
                         raw_error=result
                     )
@@ -84,19 +91,19 @@ class GLM47Provider(BaseProvider):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8') if e.fp else 'No body'
             raise ProviderError(
-                f"GLM-4.7 API error: {e.code} - {error_body}",
+                f"GLM API error: {e.code} - {error_body}",
                 provider=self.name,
                 raw_error=e
             )
         except json.JSONDecodeError as e:
             raise ProviderError(
-                f"Invalid JSON response from GLM-4.7: {e}",
+                f"Invalid JSON response from GLM: {e}",
                 provider=self.name,
                 raw_error=e
             )
         except Exception as e:
             raise ProviderError(
-                f"GLM-4.7 request failed: {e}",
+                f"GLM request failed: {e}",
                 provider=self.name,
                 raw_error=e
             )

@@ -3,12 +3,12 @@
 Ralph Loop Agent - Multi-Provider Entry Point
 
 Usage:
-    python glm47_agent.py "your prompt here"
-    echo "your prompt" | python glm47_agent.py
+    python agent.py "your prompt here"
+    echo "your prompt" | python agent.py
 
 Environment Variables:
-    PROVIDER: Provider to use (glm47, claude, codex, kimmy_k2) - default: glm47
-    OPENCODE_API_KEY: API key for GLM-4.7
+    PROVIDER: Provider to use (glm, claude, codex, kimmy_k2) - default: glm
+    OPENCODE_API_KEY: API key for GLM
     ANTHROPIC_API_KEY: API key for Claude
     OPENAI_API_KEY: API key for OpenAI/Codex
     KIMMY_K2_API_KEY: API key for Kimmy K2
@@ -44,15 +44,16 @@ def main():
             print("Ralph Loop Agent - Multi-Provider AI Agent")
             print("")
             print("Usage:")
-            print("  python glm47_agent.py \"your prompt\"")
-            print("  echo \"prompt\" | python glm47_agent.py")
+            print("  python agent.py \"your prompt\"")
+            print("  echo \"prompt\" | python agent.py")
             print("")
             print("Environment Variables:")
-            print("  PROVIDER          Provider to use (default: glm47)")
-            print("  OPENCODE_API_KEY  API key for GLM-4.7")
+            print("  PROVIDER          Provider to use (default: glm)")
+            print("  OPENCODE_API_KEY  API key for GLM (glm-4.7, glm-5)")
             print("  ANTHROPIC_API_KEY API key for Claude")
             print("  OPENAI_API_KEY    API key for OpenAI/Codex")
             print("  KIMMY_K2_API_KEY  API key for Kimmy K2")
+            print("  OPENCODE_MODEL    Model override (e.g., glm-5)")
             print("")
             print("Available Providers:")
             for name, desc in list_providers().items():
@@ -65,7 +66,7 @@ def main():
     
     if not prompt:
         print("ERROR: No prompt provided", file=sys.stderr)
-        print("Usage: python glm47_agent.py \"your prompt\"", file=sys.stderr)
+        print("Usage: python agent.py \"your prompt\"", file=sys.stderr)
         sys.exit(1)
     
     try:
@@ -82,7 +83,7 @@ def main():
     print(f"[Agent] Prompt length: {len(prompt)} chars", file=sys.stderr)
     
     try:
-        response = agent.run(enhanced_prompt, temperature=0.7, max_tokens=8192)
+        response = agent.run(enhanced_prompt, temperature=0.7)
     except ProviderError as e:
         print(f"\nERROR: {e}", file=sys.stderr)
         sys.exit(1)

@@ -26,7 +26,7 @@ This document describes the architecture of Ralph Loop and how components intera
                                         │
                                         ▼
                             ┌───────────────────────┐
-                            │    glm47_agent.py     │
+                            │      agent.py         │
                             │   (Entry Point)       │
                             └───────────┬───────────┘
                                         │
@@ -56,7 +56,7 @@ This document describes the architecture of Ralph Loop and how components intera
     │ ┌─────┴─────┐ │
     │ │Providers  │ │
     │ │           │ │
-    │ │ • glm47   │ │──────► Z.AI API
+    │ │ • glm     │ │──────► Z.AI API (glm-4.7, glm-5)
     │ │ • claude  │ │──────► Anthropic API
     │ │ • codex   │ │──────► OpenAI API
     │ │ • kimmy_k2│ │──────► (TBD)
@@ -76,7 +76,7 @@ This document describes the architecture of Ralph Loop and how components intera
       ▼                          ▼                          ▼
 ┌──────────┐              ┌──────────┐              ┌──────────────┐
 │ ./loop.sh│              │  .env    │              │PROVIDER=xxx  │
-│ building │              │ file     │              │              │
+│ building │              │ file     │              │OPENCODE_MODEL│
 └────┬─────┘              └────┬─────┘              └──────┬───────┘
      │                         │                           │
      └─────────────────────────┼───────────────────────────┘
@@ -89,7 +89,7 @@ This document describes the architecture of Ralph Loop and how components intera
                                │
                                ▼
                     ┌─────────────────────┐
-                    │   glm47_agent.py    │
+                    │      agent.py       │
                     │                     │
                     │  1. Load Config     │
                     │  2. Select Provider │
@@ -102,7 +102,7 @@ This document describes the architecture of Ralph Loop and how components intera
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
 │   Config    │         │   Provider  │         │   Agent     │
 │             │         │             │         │             │
-│ Validate    │         │ GLM47Provider│        │ BaseAgent   │
+│ Validate    │         │ GLMProvider │         │ BaseAgent   │
 │ API Keys    │         │ ClaudeProvider│       │             │
 │             │         │ CodexProvider│        │ • run()     │
 └─────────────┘         │ KimmyK2Provider│      │ • tools     │
@@ -184,7 +184,7 @@ The main bash script that orchestrates the Ralph Loop:
 │  │       │                                                  │   │
 │  │       ├── Load PROMPT_file content                       │   │
 │  │       │                                                  │   │
-│  │       ├── Run: python3 glm47_agent.py "$prompt"          │   │
+│  │       ├── Run: python3 agent.py "$prompt"                │   │
 │  │       │                                                  │   │
 │  │       ├── Check exit code                                │   │
 │  │       │                                                  │   │
@@ -207,13 +207,13 @@ The main bash script that orchestrates the Ralph Loop:
 │  config.py                 Provider Factory & Configuration     │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │ PROVIDER_REGISTRY = {                                    │   │
-│  │   "glm47": GLM47Provider,                                │   │
+│  │   "glm": GLMProvider,      # glm-4.7, glm-5              │   │
 │  │   "claude": ClaudeProvider,                              │   │
 │  │   "codex": CodexProvider,                                │   │
 │  │   "kimmy_k2": KimmyK2Provider,                           │   │
 │  │ }                                                        │   │
 │  │                                                          │   │
-│  │ get_provider(name, api_key) → BaseProvider               │   │
+│  │ get_provider(name, api_key, model) → BaseProvider        │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 │  agent/base.py             Core Agent Logic                    │
@@ -233,19 +233,21 @@ The main bash script that orchestrates the Ralph Loop:
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │ base.py ─── BaseProvider (abstract)                      │   │
 │  │              ├── chat(messages) → Dict                   │   │
-│  │              └── get_model_name() → str                  │   │
+│  │              ├── get_model_name() → str                  │   │
+│  │              └── get_max_tokens() → int                  │   │
 │  │                                                          │   │
-│  │ glm47.py ── GLM47Provider                                │   │
+│  │ glm.py ──── GLMProvider                                  │   │
 │  │              API: api.z.ai/api/coding/paas/v4            │   │
-│  │              Auth: Bearer token                          │   │
+│  │              Models: glm-4.7, glm-5                      │   │
+│  │              Max tokens: 32768                           │   │
 │  │                                                          │   │
 │  │ claude.py ─ ClaudeProvider                               │   │
 │  │              API: api.anthropic.com/v1                   │   │
-│  │              Auth: x-api-key header                      │   │
+│  │              Max tokens: 16384                           │   │
 │  │                                                          │   │
 │  │ codex.py ── CodexProvider                                │   │
 │  │              API: api.openai.com/v1                      │   │
-│  │              Auth: Bearer token                          │   │
+│  │              Max tokens: 16384                           │   │
 │  │                                                          │   │
 │  │ kimmy_k2.py ─ KimmyK2Provider (placeholder)              │   │
 │  └─────────────────────────────────────────────────────────┘   │
@@ -445,10 +447,13 @@ The main bash script that orchestrates the Ralph Loop:
 ralph-loop/
 │
 ├── loop.sh                    # Main orchestrator script
-├── glm47_agent.py             # Agent entry point
+├── agent.py                   # Agent entry point
 ├── docker-compose.yml         # Docker configuration
 ├── Dockerfile                 # Container build
 ├── .env.example               # Environment template
+├── README.md                  # Project documentation
+├── ARCHITECTURE.md            # This file
+├── DEPLOYMENT.md              # Deployment guide
 │
 ├── libs/                      # Core libraries
 │   ├── __init__.py
@@ -461,7 +466,7 @@ ralph-loop/
 │   ├── providers/
 │   │   ├── __init__.py
 │   │   ├── base.py            # BaseProvider interface
-│   │   ├── glm47.py           # Z.AI GLM-4.7
+│   │   ├── glm.py             # Z.AI GLM (glm-4.7, glm-5)
 │   │   ├── claude.py          # Anthropic Claude
 │   │   ├── codex.py           # OpenAI Codex
 │   │   └── kimmy_k2.py        # Kimmy K2 (placeholder)
@@ -470,18 +475,12 @@ ralph-loop/
 │       ├── __init__.py
 │       └── tools.py           # File & command tools
 │
-├── prompts/                   # Mode-specific prompts
-│   ├── PROMPT_planning.md
-│   ├── PROMPT_building.md
-│   ├── PROMPT_qa.md
-│   └── GETTING_STARTED.md
-│
-├── specs/                     # Application specifications
-│   ├── README.md
-│   ├── deployment.md          # Deployment docs
-│   └── chrome-extension.md    # Example spec
-│
-├── agents.md                  # Build/test commands
-├── improvements.md            # State tracking
-└── IMPLEMENTATION_PLAN.md     # Generated task list
+└── projects/                  # User projects (created by Ralph)
+    └── <project_name>/        # Each project has its own directory
+        ├── specs/             # Project specifications
+        ├── src/               # Project source code
+        ├── agents.md          # Build/test commands
+        ├── improvements.md    # State tracking
+        ├── IMPLEMENTATION_PLAN.md  # Generated task list
+        └── .git/              # Git repository
 ```

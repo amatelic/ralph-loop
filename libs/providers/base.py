@@ -13,6 +13,7 @@ class BaseProvider(ABC):
     
     name: str = "base"
     default_model: str = ""
+    max_output_tokens: int = 16384
     
     def __init__(
         self,
@@ -31,7 +32,7 @@ class BaseProvider(ABC):
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 0.7,
-        max_tokens: int = 8192,
+        max_tokens: int = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -40,7 +41,7 @@ class BaseProvider(ABC):
         Args:
             messages: List of message dicts with 'role' and 'content'
             temperature: Sampling temperature
-            max_tokens: Maximum tokens to generate
+            max_tokens: Maximum tokens to generate (default: provider max)
             **kwargs: Provider-specific options
         
         Returns:
@@ -57,6 +58,10 @@ class BaseProvider(ABC):
     def get_model_name(self) -> str:
         """Return the model name being used."""
         pass
+    
+    def get_max_tokens(self) -> int:
+        """Return the maximum output tokens for this provider."""
+        return self.max_output_tokens
     
     def validate_api_key(self) -> bool:
         """Check if API key appears valid (non-empty, not placeholder)."""

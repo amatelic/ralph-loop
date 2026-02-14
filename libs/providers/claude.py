@@ -18,6 +18,7 @@ class ClaudeProvider(BaseProvider):
     name = "claude"
     default_model = "claude-sonnet-4-20250514"
     default_base_url = "https://api.anthropic.com/v1"
+    max_output_tokens = 16384
     
     def __init__(
         self,

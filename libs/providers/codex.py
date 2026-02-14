@@ -18,6 +18,7 @@ class CodexProvider(BaseProvider):
     name = "codex"
     default_model = "gpt-4"
     default_base_url = "https://api.openai.com/v1"
+    max_output_tokens = 16384
     
     def __init__(
         self,

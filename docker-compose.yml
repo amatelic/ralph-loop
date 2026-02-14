@@ -6,13 +6,13 @@ services:
       - ./:/workspace
       - ~/.ssh:/root/.ssh:ro
     environment:
+      - PROJECT_NAME=${PROJECT_NAME}
       - OPENCODE_API_KEY=${OPENCODE_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - KIMMY_K2_API_KEY=${KIMMY_K2_API_KEY}
-      - PROVIDER=${PROVIDER:-glm47}
+      - PROVIDER=${PROVIDER:-glm}
       - OPENCODE_MODEL=${OPENCODE_MODEL:-}
-      - OPENCODE_PERMISSION=${OPENCODE_PERMISSION:-allow}
       - MAX_ITERATIONS=${MAX_ITERATIONS:-0}
     working_dir: /workspace
     stdin_open: true
