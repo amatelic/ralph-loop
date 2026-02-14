@@ -4,10 +4,14 @@ services:
     build: .
     volumes:
       - ./:/workspace
-      - ~/.ssh:/root/.ssh:ro  # For git operations (read-only)
+      - ~/.ssh:/root/.ssh:ro
     environment:
       - OPENCODE_API_KEY=${OPENCODE_API_KEY}
-      - OPENCODE_MODEL=${OPENCODE_MODEL:-zai/glm-4.7}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - KIMMY_K2_API_KEY=${KIMMY_K2_API_KEY}
+      - PROVIDER=${PROVIDER:-glm47}
+      - OPENCODE_MODEL=${OPENCODE_MODEL:-}
       - OPENCODE_PERMISSION=${OPENCODE_PERMISSION:-allow}
       - MAX_ITERATIONS=${MAX_ITERATIONS:-0}
     working_dir: /workspace

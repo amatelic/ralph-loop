@@ -1,12 +1,10 @@
-# Ralph Loop - Native GLM-4.7 Implementation
+# Ralph Loop - Multi-Provider AI Development Loop
 
-Autonomous AI-driven development using Ralph Wiggum technique with native GLM-4.7 and Docker.
+Autonomous AI-driven development using Ralph Wiggum technique with multi-provider support.
 
-**🚀 Quick Summary:** Write specs in `specs/*.md` → Run `./loop.sh planning` to generate plan → Run `./loop.sh building` to implement → Run `./loop.sh qa` to validate. Repeat as needed.
-
-**✨ Features:**
+**Features:**
+- Multi-provider support: GLM-4.7, Claude, Codex, Kimmy K2
 - Three independent commands: `planning`, `building`, `qa`
-- Native GLM-4.7 integration (direct API calls)
 - Docker isolation for safe autonomous execution
 - Auto-updates `improvements.md` with progress
 - Auto-generates implementation plans
@@ -14,175 +12,34 @@ Autonomous AI-driven development using Ralph Wiggum technique with native GLM-4.
 
 ## Quick Start
 
-1. **Configure Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your OPENCODE_API_KEY (Z.AI direct API key)
-   ```
-
-2. **Initialize Git Repository**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: Ralph Loop setup"
-   ```
-
-3. **Build and Start Docker**
-   ```bash
-   docker-compose build
-   docker-compose up -d
-   ```
-
-4. **Run Ralph Loop**
-   ```bash
-   # Run inside Docker container
-   docker-compose exec ralph bash
-   ./loop.sh planning     # Generate implementation plan
-   ./loop.sh building      # Build the application
-   ./loop.sh qa            # Quality assurance
-
-   # Or run directly via docker-compose
-   MODE=planning docker-compose up ralph
-   MODE=building MAX_ITERATIONS=20 docker-compose up ralph
-   MODE=qa docker-compose up ralph
-   ```
-
-## Running Locally (Without Docker)
-
 ```bash
-# Set environment variables
-export OPENCODE_API_KEY=your_key_here
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with your API key and provider
 
-# Run the loop
-./loop.sh planning
-./loop.sh building 20
-./loop.sh qa
+# 2. Initialize Git
+git init && git add . && git commit -m "Initial commit"
+
+# 3. Build and Start (Docker)
+docker-compose build && docker-compose up -d
+
+# 4. Run Ralph Loop
+docker-compose exec ralph bash
+./loop.sh planning     # Generate implementation plan
+./loop.sh building      # Build the application
+./loop.sh qa            # Quality assurance
 ```
 
-## Detailed Usage
+## Providers
 
-### Step 1: Write Your Specifications
+| Provider | Env Variable | Description |
+|----------|-------------|-------------|
+| `glm47` | `OPENCODE_API_KEY` | GLM-4.7 via Z.AI (default) |
+| `claude` | `ANTHROPIC_API_KEY` | Anthropic Claude |
+| `codex` | `OPENAI_API_KEY` | OpenAI GPT-4 |
+| `kimmy_k2` | `KIMMY_K2_API_KEY` | Kimmy K2 (placeholder) |
 
-Create specification files in the `specs/` directory:
-
-```bash
-# Example: Create a spec for user authentication
-cat > specs/user-authentication.md << 'EOF'
-# User Authentication System
-
-## Overview
-The user authentication system allows users to register, login, and manage their sessions.
-
-## Requirements
-
-### User Registration
-- Users can sign up with email and password
-- Password must be at least 8 characters
-- Email validation required
-
-### User Login
-- Users can login with email and password
-- Session tokens generated upon successful login
-- Session expires after 24 hours
-
-### Technical Requirements
-- Use JWT for session management
-- Store hashed passwords using bcrypt
-- Implement rate limiting for login attempts
-
-## Acceptance Criteria
-- [ ] Users can register successfully
-- [ ] Login works with correct credentials
-- [ ] Login fails with incorrect credentials
-- [ ] Session tokens expire after 24 hours
-EOF
-```
-
-**Spec Guidelines:**
-- One spec per topic of concern
-- Topic should be describable in one sentence without "and"
-- Include requirements, acceptance criteria, and technical constraints
-
-### Step 2: Generate Implementation Plan
-
-Run planning mode to analyze specs vs code:
-
-```bash
-./loop.sh planning
-```
-
-This will:
-- Study all specs in `specs/`
-- Analyze existing code in `src/`
-- Perform gap analysis
-- Generate/update `IMPLEMENTATION_PLAN.md` with prioritized tasks
-
-**Output:**
-- Creates/updates `IMPLEMENTATION_PLAN.md`
-- Lists tasks in priority order
-- Identifies missing functionality
-- No code is written in planning mode
-
-### Step 3: Build the Application
-
-Run building mode to implement from the plan:
-
-```bash
-# Unlimited iterations (run until plan complete)
-./loop.sh building
-
-# Or limit iterations (e.g., 10 tasks)
-./loop.sh building 10
-```
-
-Each iteration will:
-1. Choose the most important task from the plan
-2. Search the codebase (doesn't assume not implemented)
-3. Implement the functionality using subagents
-4. Run tests specified in `agents.md`
-5. Update `IMPLEMENTATION_PLAN.md`
-6. Commit changes with a descriptive message
-7. Create git tag (0.0.1, 0.0.2, etc.)
-8. Update `improvements.md` with progress
-9. Clear context and start fresh for next iteration
-
-### Step 4: Quality Assurance
-
-Run QA mode for comprehensive validation:
-
-```bash
-./loop.sh qa
-```
-
-This will:
-- Run all test suites (unit, integration, e2e)
-- Execute typecheck and lint commands
-- Build the application
-- Review code quality and architecture
-- Perform security analysis
-- Analyze performance
-- Categorize issues (Critical/High/Medium/Low)
-- Generate QA report in `improvements.md`
-
-### Step 5: Iterate as Needed
-
-Repeat the cycle:
-- Update specs if requirements change
-- Regenerate plan if needed (`rm IMPLEMENTATION_PLAN.md && ./loop.sh planning`)
-- Continue building
-- Run QA to validate
-
-## Running Locally (Without Docker)
-
-```bash
-# Set environment variables
-export OPENCODE_API_KEY=your_key_here
-
-# Run the loop
-./loop.sh planning
-./loop.sh building 20
-./loop.sh qa
-```
+Set provider with `PROVIDER=claude` in `.env` or environment.
 
 ## Commands
 
@@ -204,15 +61,29 @@ Full quality gate: tests, code review, security, performance.
 ./loop.sh qa [max_iterations]
 ```
 
+### Test Setup
+Validates configuration without running loop.
+```bash
+./loop.sh test
+```
+
 ## Project Structure
 
-- `loop.sh` - Main loop script
-- `prompts/PROMPT_*.md` - Mode-specific instructions
-- `agents.md` - Operational guide (build/test commands)
-- `improvements.md` - State tracking log
-- `specs/*.md` - Application specifications
-- `IMPLEMENTATION_PLAN.md` - Generated task list
-- `src/` - Application code
+```
+├── loop.sh              # Main loop script
+├── glm47_agent.py       # Agent entry point
+├── libs/                # Core libraries
+│   ├── config.py        # Provider factory & config
+│   ├── agent/           # Agent framework
+│   ├── providers/       # AI provider implementations
+│   └── tools/           # File/command tools
+├── prompts/             # Mode-specific instructions
+├── specs/               # Application specifications
+│   └── deployment.md    # Deployment documentation
+├── agents.md            # Build/test commands
+├── improvements.md      # State tracking log
+└── IMPLEMENTATION_PLAN.md # Generated task list
+```
 
 ## Workflow
 
@@ -222,193 +93,12 @@ Full quality gate: tests, code review, security, performance.
 4. Run `./loop.sh qa` to validate
 5. Repeat 2-4 as needed
 
-## GLM-4.7 Configuration
+## Detailed Documentation
 
-- **Model**: Native GLM-4.7 via Z.AI direct API
-- **API Key**: Your Z.AI direct API key
-- **Endpoint**: https://api.z.ai/api/coding/paas/v4/chat/completions
-
-Environment variables in `.env`:
-```bash
-OPENCODE_API_KEY=your_api_key_here
-USE_NATIVE_GLM=true
-```
-
-## Key Files
-
-### `agents.md` - Operational Guide
-Keep this **brief (~60 lines)**. It should contain:
-- Build commands
-- Test commands
-- Typecheck and lint commands
-- How to run the application
-- Environment setup notes
-- Codebase patterns
-
-**Example:**
-```markdown
-## Build & Run
-- Build command: `npm run build`
-- Run command: `npm run dev`
-
-## Validation
-- Tests: `npm test`
-- Typecheck: `npm run typecheck`
-- Lint: `npm run lint`
-```
-
-### `improvements.md` - State Tracking
-Updated automatically by Ralph after each iteration:
-- What was built
-- State of the application
-- Important information discovered
-- Architecture decisions
-- Bug fixes and issues resolved
-
-### `IMPLEMENTATION_PLAN.md` - Generated Task List
-Created by planning mode, updated by building mode:
-- Prioritized task list
-- Tracks completed/pending items
-- Auto-cleans completed tasks
-- **Do not edit manually**
-
-### `specs/*.md` - Application Specifications
-All workings of your application:
-- Requirements and specifications
-- User stories
-- Technical details
-- Acceptance criteria
-
-## Troubleshooting
-
-### Docker Issues
-
-**Q: Docker container won't start**
-```bash
-# Check logs
-docker-compose logs ralph
-
-# Rebuild image
-docker-compose build --no-cache
-```
-
-**Q: Volume permissions issues**
-```bash
-# Fix permissions on macOS/Linux
-sudo chown -R $USER:$USER .
-```
-
-### API Issues
-
-**Q: API key errors**
-- Verify `OPENCODE_API_KEY` in `.env` is correct
-- Check API key is valid and has credits
-- Ensure you're using a direct Z.AI API key
-
-**Q: GLM-4.7 agent not found**
-```bash
-# Check glm47_agent.py exists
-ls -la glm47_agent.py
-
-# If missing, pull from repository or recreate
-```
-
-### Loop Issues
-
-**Q: Loop goes in circles or makes wrong decisions**
-```bash
-# Regenerate the plan
-rm IMPLEMENTATION_PLAN.md
-./loop.sh planning
-```
-
-**Q: Tests keep failing**
-- Check `agents.md` has correct test commands
-- Review test logs in Docker output
-- Consider updating specs if tests are incorrect
-
-**Q: Git push fails**
-- Ensure remote repository is configured: `git remote -v`
-- Check authentication: `git config --global user.name` and `user.email`
-- Verify you have push permissions
-
-## Tips & Best Practices
-
-### Writing Good Specs
-1. **One topic per spec**: Don't combine unrelated features
-2. **Be specific**: Include acceptance criteria
-3. **Think about edge cases**: Document constraints and edge cases
-4. **Include technical details**: Performance requirements, security considerations
-
-### Managing the Loop
-1. **Start with planning**: Always generate a plan first
-2. **Limit iterations**: Use `./loop.sh building N` to limit tasks
-3. **Watch the logs**: Monitor progress in real-time
-4. **Let Ralph Ralph**: Trust the AI to self-correct, intervene only when stuck
-
-### When to Regenerate the Plan
-- Ralph is implementing wrong things
-- Duplicating work already done
-- Plan feels stale or outdated
-- Too much clutter from completed items
-- Requirements changed significantly
-
-### Backpressure is Critical
-- Ensure `agents.md` has correct build/test commands
-- Tests must fail for invalid work
-- Lint and typecheck catch errors early
-- Security scans catch vulnerabilities
-
-## Example Workflow
-
-Here's a complete example of building a simple to-do list application:
-
-```bash
-# 1. Initialize project
-git init
-git add .
-git commit -m "Initial commit"
-
-# 2. Write specs
-cat > specs/todo-app.md << 'EOF'
-# To-Do List Application
-
-## Features
-- Create, read, update, delete tasks
-- Mark tasks as complete
-- Store tasks in a database
-
-## Requirements
-- Use SQLite for persistence
-- RESTful API endpoints
-- JSON request/response format
-EOF
-
-# 3. Update agents.md with project-specific commands
-cat > agents.md << 'EOF'
-## Build & Run
-- Build command: `python -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
-- Run command: `python app.py`
-
-## Validation
-- Tests: `pytest`
-- Typecheck: `mypy .`
-- Lint: `ruff check .`
-EOF
-
-# 4. Generate plan
-./loop.sh planning
-
-# 5. Build (limit to 10 iterations for testing)
-./loop.sh building 10
-
-# 6. Quality assurance
-./loop.sh qa
-
-# 7. Check progress
-cat improvements.md
-cat IMPLEMENTATION_PLAN.md
-```
+- **Architecture**: See `ARCHITECTURE.md` for system diagrams and component details
+- **Deployment**: See `specs/deployment.md` for Docker setup, environment variables, and troubleshooting
+- **Writing Specs**: See `specs/README.md`
+- **Getting Started**: See `prompts/GETTING_STARTED.md`
 
 ## Philosophy
 
@@ -418,12 +108,6 @@ cat IMPLEMENTATION_PLAN.md
 - **Backpressure**: Tests guardrail the implementation
 - **Observe and Adjust**: Watch the loop, add guardrails as needed
 
-## Additional Resources
-
-- [Ralph Wiggum Technique](https://ghuntley.com/ralph/)
-- [Docker Documentation](https://docs.docker.com/)
-- [Z.AI API Documentation](https://open.bigmodel.cn/dev/api)
-
 ## License
 
-MIT License - Feel free to use and modify for your projects.
+MIT License
