@@ -13,6 +13,24 @@ import glob as glob_module
 from typing import Dict, Any, List, Optional, Callable
 
 
+def get_project_root() -> str:
+    """Get the project root directory."""
+    return os.environ.get('PROJECT_ROOT', os.getcwd())
+
+
+def is_within_project(file_path: str) -> bool:
+    """Check if a file path is within the project directory."""
+    project_root = get_project_root()
+    abs_file_path = os.path.abspath(file_path)
+    abs_project_root = os.path.abspath(project_root)
+    
+    try:
+        os.path.relpath(abs_file_path, abs_project_root)
+        return True
+    except ValueError:
+        return False
+
+
 class ToolRegistry:
     """Registry for available tools."""
     
@@ -49,13 +67,14 @@ class ToolRegistry:
         return """
 Available tools:
 - read(file_path): Read file contents
-- write(file_path, content): Write content to file
-- edit(file_path, old_string, new_string, replace_all=False): Edit file
+- write(file_path, content): Write content to file (restricted to project directory)
+- edit(file_path, old_string, new_string, replace_all=False): Edit file (restricted to project directory)
 - glob(pattern, path="."): Find files matching pattern
 - grep(pattern, path=".", include="*"): Search in files
 - bash(command, timeout=120000): Execute bash command
 - list_files(path="."): List directory contents
-"""
+
+NOTE: write_file and edit_file can only modify files within the project directory."""
 
 
 def read_file(file_path: str) -> Dict[str, Any]:
@@ -71,6 +90,14 @@ def read_file(file_path: str) -> Dict[str, Any]:
 def write_file(file_path: str, content: str) -> Dict[str, Any]:
     """Write content to file."""
     try:
+        # Validate file is within project directory
+        if not is_within_project(file_path):
+            project_root = get_project_root()
+            return {
+                "success": False,
+                "error": f"Cannot write file outside project directory. File: {file_path}, Project root: {project_root}"
+            }
+        
         dir_path = os.path.dirname(file_path)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
@@ -89,6 +116,14 @@ def edit_file(
 ) -> Dict[str, Any]:
     """Edit file by replacing text."""
     try:
+        # Validate file is within project directory
+        if not is_within_project(file_path):
+            project_root = get_project_root()
+            return {
+                "success": False,
+                "error": f"Cannot edit file outside project directory. File: {file_path}, Project root: {project_root}"
+            }
+        
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
