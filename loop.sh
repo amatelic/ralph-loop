@@ -54,6 +54,112 @@ get_api_key() {
     eval echo "\${$key_name}"
 }
 
+create_prompt_content() {
+    local mode=$1
+    local project_path="$2"
+    
+    local project_context="You are working on project '${PROJECT_NAME}' located at: ${project_path}
+
+All file operations (read, write, edit) must be performed relative to the project directory.
+- Specs are in: specs/
+- Source code goes in: src/
+- Build/test commands are in: agents.md
+- Progress is tracked in: improvements.md
+
+"
+    
+    case $mode in
+        planning)
+            cat << EOF
+${project_context}0a. Check if \`specs/*\` has any specification files. If the specs directory is empty or only has README.md, you MUST first ask the user: "What is the purpose of this project? Please describe what you want to build."
+
+0b. If the user provides a description, generate appropriate specification files in specs/ based on their requirements. Each spec file should describe a distinct feature or concern.
+
+0c. Study @IMPLEMENTATION_PLAN.md (if present) to understand the plan so far.
+
+0d. For reference, the application source code is in \`src/*\`.
+
+1. Study @IMPLEMENTATION_PLAN.md (if present; it may be incorrect) and study existing source code in \`src/*\` and compare it against \`specs/*\`. Analyze findings, prioritize tasks, and create/update @IMPLEMENTATION_PLAN.md as a bullet point list sorted in priority of items yet to be implemented. Think extra hard. Consider searching for TODO, minimal implementations, placeholders, skipped/flaky tests, and inconsistent patterns.
+
+IMPORTANT: Plan only. Do NOT implement anything. Do NOT assume functionality is missing; confirm with code search first.
+
+ULTIMATE GOAL: Build the application according to specifications in \`specs/*\`. Consider missing elements and plan accordingly. If an element is missing, search first to confirm it doesn't exist, then if needed author the specification at specs/FILENAME.md. If you create a new element then document the plan to implement it in @IMPLEMENTATION_PLAN.md.
+
+9999999. Keep @IMPLEMENTATION_PLAN.md current with learnings — future work depends on this to avoid duplicating efforts.
+99999999. If you find inconsistencies in the specs/* then update the specs.
+EOF
+            ;;
+        building)
+            cat << EOF
+${project_context}0a. Study \`specs/*\` to learn the application specifications.
+0b. Study @IMPLEMENTATION_PLAN.md.
+0c. For reference, the application source code is in \`src/*\`.
+
+1. Your task is to implement functionality per the specifications. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address. Before making changes, search the codebase (don't assume not implemented). Think extra hard about the best approach.
+
+2. After implementing functionality or resolving problems, run the tests for that unit of code that was improved. Follow the commands specified in @agents.md for validation. If functionality is missing then it's your job to add it as per the application specifications.
+
+3. When you discover issues, immediately update @IMPLEMENTATION_PLAN.md with your findings. When resolved, update and remove the item.
+
+4. When the tests pass, update @IMPLEMENTATION_PLAN.md, then \`git add -A\` then \`git commit\` with a message describing the changes. After the commit, update @improvements.md with what was built, state changes, and important information discovered.
+
+999. Important: When authoring documentation, capture the why — tests and implementation importance.
+9999. Single sources of truth, no migrations/adapters. If tests unrelated to your work fail, resolve them as part of the increment.
+99999. As soon as there are no build or test errors create a git tag. If there are no git tags start at 0.0.0 and increment patch by 1 for example 0.0.1 if 0.0.0 does not exist.
+999999. You may add extra logging if required to debug issues.
+9999999. Keep @IMPLEMENTATION_PLAN.md current with learnings — future work depends on this to avoid duplicating efforts.
+99999999. When you learn something new about how to run the application, update @agents.md but keep it brief.
+999999999. For any bugs you notice, resolve them or document them in @IMPLEMENTATION_PLAN.md even if it is unrelated to the current piece of work.
+9999999999. Implement functionality completely. Placeholders and stubs waste efforts and time redoing the same work.
+99999999999. When @IMPLEMENTATION_PLAN.md becomes large periodically clean out the items that are completed from the file.
+999999999999. If you find inconsistencies in the specs/* then update the specs.
+9999999999999. IMPORTANT: Keep @agents.md operational only — status updates and progress notes belong in @IMPLEMENTATION_PLAN.md.
+99999999999999. Update @improvements.md after each commit with what was built, state of app, and important information discovered.
+EOF
+            ;;
+        qa)
+            cat << EOF
+${project_context}0a. Study \`specs/*\` to learn the application specifications.
+0b. Study @IMPLEMENTATION_PLAN.md.
+0c. Study @agents.md to understand build/test commands.
+0d. Study @improvements.md to understand current state.
+
+1. Your task is to perform comprehensive quality assurance on the application:
+   a. Run all tests (unit, integration, e2e) as specified in @agents.md
+   b. Run typecheck and lint commands
+   c. Build the application to ensure no build errors
+   d. Review code quality, architecture, and patterns
+   e. Perform security analysis
+   f. Analyze performance characteristics
+   g. Check for edge cases and error handling
+
+2. When issues are found, categorize them as:
+   - Critical: Blocks release, must fix immediately
+   - High: Important but can defer
+   - Medium: Nice to have, low priority
+   - Low: Minor issues, suggestions
+
+3. Update @IMPLEMENTATION_PLAN.md with discovered issues.
+
+4. Generate a QA report in @improvements.md with:
+   - Test results summary
+   - Code quality metrics
+   - Security findings
+   - Performance observations
+   - Recommendations
+   - Overall quality assessment (Pass/Fail/Conditional)
+
+999. Think extra hard about edge cases, security vulnerabilities, and performance bottlenecks.
+9999. Document all findings with specific file references and line numbers.
+99999. If critical issues are found, fail the QA gate and document why.
+999999. Update @improvements.md with comprehensive QA findings.
+9999999. Suggest test improvements to increase coverage.
+99999999. Verify that all acceptance criteria from specs are met.
+EOF
+            ;;
+    esac
+}
+
 init_project() {
     local project_path="$1"
     
@@ -119,7 +225,9 @@ EOF
     
     if [ ! -d "$project_path/.git" ]; then
         cd "$project_path"
-        git init
+        git init -b main
+        git config user.email "ralph@loop.dev" 2>/dev/null || true
+        git config user.name "Ralph Loop" 2>/dev/null || true
         git add .
         git commit -m "Initial commit: Project initialized by Ralph Loop"
         cd "$RALPH_ROOT"
@@ -310,7 +418,7 @@ echo -e "Python Version: $(python3 --version 2>&1 || echo 'Not found')"
 echo -e "Git Version:    $(git --version 2>&1 || echo 'Not found')"
 echo ""
 
-PROMPT_CONTENT=$(create_prompt_content "$MODE")
+PROMPT_CONTENT=$(create_prompt_content "$MODE" "$PROJECT_PATH")
 
 while true; do
     if [ $MAX_ITERATIONS -gt 0 ] && [ $ITERATION -ge $MAX_ITERATIONS ]; then
@@ -357,108 +465,3 @@ done
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}Ralph Loop Completed - $ITERATION iterations${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-
-create_prompt_content() {
-    local mode=$1
-    
-    local project_context="You are working on project '${PROJECT_NAME}' located at: ${PROJECT_PATH}
-
-All file operations (read, write, edit) must be performed relative to the project directory.
-- Specs are in: specs/
-- Source code goes in: src/
-- Build/test commands are in: agents.md
-- Progress is tracked in: improvements.md
-
-"
-    
-    case $mode in
-        planning)
-            cat << EOF
-${project_context}0a. Check if \`specs/*\` has any specification files. If the specs directory is empty or only has README.md, you MUST first ask the user: "What is the purpose of this project? Please describe what you want to build."
-
-0b. If the user provides a description, generate appropriate specification files in specs/ based on their requirements. Each spec file should describe a distinct feature or concern.
-
-0c. Study @IMPLEMENTATION_PLAN.md (if present) to understand the plan so far.
-
-0d. For reference, the application source code is in \`src/*\`.
-
-1. Study @IMPLEMENTATION_PLAN.md (if present; it may be incorrect) and study existing source code in \`src/*\` and compare it against \`specs/*\`. Analyze findings, prioritize tasks, and create/update @IMPLEMENTATION_PLAN.md as a bullet point list sorted in priority of items yet to be implemented. Think extra hard. Consider searching for TODO, minimal implementations, placeholders, skipped/flaky tests, and inconsistent patterns.
-
-IMPORTANT: Plan only. Do NOT implement anything. Do NOT assume functionality is missing; confirm with code search first.
-
-ULTIMATE GOAL: Build the application according to specifications in \`specs/*\`. Consider missing elements and plan accordingly. If an element is missing, search first to confirm it doesn't exist, then if needed author the specification at specs/FILENAME.md. If you create a new element then document the plan to implement it in @IMPLEMENTATION_PLAN.md.
-
-9999999. Keep @IMPLEMENTATION_PLAN.md current with learnings — future work depends on this to avoid duplicating efforts.
-99999999. If you find inconsistencies in the specs/* then update the specs.
-EOF
-            ;;
-        building)
-            cat << EOF
-${project_context}0a. Study \`specs/*\` to learn the application specifications.
-0b. Study @IMPLEMENTATION_PLAN.md.
-0c. For reference, the application source code is in \`src/*\`.
-
-1. Your task is to implement functionality per the specifications. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address. Before making changes, search the codebase (don't assume not implemented). Think extra hard about the best approach.
-
-2. After implementing functionality or resolving problems, run the tests for that unit of code that was improved. Follow the commands specified in @agents.md for validation. If functionality is missing then it's your job to add it as per the application specifications.
-
-3. When you discover issues, immediately update @IMPLEMENTATION_PLAN.md with your findings. When resolved, update and remove the item.
-
-4. When the tests pass, update @IMPLEMENTATION_PLAN.md, then \`git add -A\` then \`git commit\` with a message describing the changes. After the commit, update @improvements.md with what was built, state changes, and important information discovered.
-
-999. Important: When authoring documentation, capture the why — tests and implementation importance.
-9999. Single sources of truth, no migrations/adapters. If tests unrelated to your work fail, resolve them as part of the increment.
-99999. As soon as there are no build or test errors create a git tag. If there are no git tags start at 0.0.0 and increment patch by 1 for example 0.0.1 if 0.0.0 does not exist.
-999999. You may add extra logging if required to debug issues.
-9999999. Keep @IMPLEMENTATION_PLAN.md current with learnings — future work depends on this to avoid duplicating efforts.
-99999999. When you learn something new about how to run the application, update @agents.md but keep it brief.
-999999999. For any bugs you notice, resolve them or document them in @IMPLEMENTATION_PLAN.md even if it is unrelated to the current piece of work.
-9999999999. Implement functionality completely. Placeholders and stubs waste efforts and time redoing the same work.
-99999999999. When @IMPLEMENTATION_PLAN.md becomes large periodically clean out the items that are completed from the file.
-999999999999. If you find inconsistencies in the specs/* then update the specs.
-9999999999999. IMPORTANT: Keep @agents.md operational only — status updates and progress notes belong in @IMPLEMENTATION_PLAN.md.
-99999999999999. Update @improvements.md after each commit with what was built, state of app, and important information discovered.
-EOF
-            ;;
-        qa)
-            cat << EOF
-${project_context}0a. Study \`specs/*\` to learn the application specifications.
-0b. Study @IMPLEMENTATION_PLAN.md.
-0c. Study @agents.md to understand build/test commands.
-0d. Study @improvements.md to understand current state.
-
-1. Your task is to perform comprehensive quality assurance on the application:
-   a. Run all tests (unit, integration, e2e) as specified in @agents.md
-   b. Run typecheck and lint commands
-   c. Build the application to ensure no build errors
-   d. Review code quality, architecture, and patterns
-   e. Perform security analysis
-   f. Analyze performance characteristics
-   g. Check for edge cases and error handling
-
-2. When issues are found, categorize them as:
-   - Critical: Blocks release, must fix immediately
-   - High: Important but can defer
-   - Medium: Nice to have, low priority
-   - Low: Minor issues, suggestions
-
-3. Update @IMPLEMENTATION_PLAN.md with discovered issues.
-
-4. Generate a QA report in @improvements.md with:
-   - Test results summary
-   - Code quality metrics
-   - Security findings
-   - Performance observations
-   - Recommendations
-   - Overall quality assessment (Pass/Fail/Conditional)
-
-999. Think extra hard about edge cases, security vulnerabilities, and performance bottlenecks.
-9999. Document all findings with specific file references and line numbers.
-99999. If critical issues are found, fail the QA gate and document why.
-999999. Update @improvements.md with comprehensive QA findings.
-9999999. Suggest test improvements to increase coverage.
-99999999. Verify that all acceptance criteria from specs are met.
-EOF
-            ;;
-    esac
-}

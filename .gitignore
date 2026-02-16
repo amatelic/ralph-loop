@@ -18,3 +18,4 @@ coverage/
 .next/
 .nuxt/
 .cache/
+projects/*

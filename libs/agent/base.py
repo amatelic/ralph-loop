@@ -6,6 +6,7 @@ Provides the core agent functionality with tool execution.
 
 import json
 import re
+import time
 from typing import List, Dict, Any, Optional, Callable
 
 from libs.providers.base import BaseProvider, ProviderError
@@ -20,13 +21,15 @@ class BaseAgent:
     def __init__(
         self,
         provider: BaseProvider,
-        max_iterations: int = 50,
-        tools: Optional[ToolRegistry] = None
+        max_iterations: int = 100,
+        tools: Optional[ToolRegistry] = None,
+        retry_on_error: int = 2
     ):
         self.provider = provider
         self.max_iterations = max_iterations
         self.conversation_history: List[Dict[str, Any]] = []
         self.tools = tools or ToolRegistry()
+        self.retry_on_error = retry_on_error
     
     def _parse_tool_calls(self, content: str) -> List[Dict[str, Any]]:
         """Parse tool calls from model response."""
@@ -97,6 +100,8 @@ class BaseAgent:
         
         iteration = 0
         final_response = None
+        last_content = ""
+        consecutive_errors = 0
         
         while iteration < self.max_iterations:
             iteration += 1
@@ -107,10 +112,26 @@ class BaseAgent:
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
+                consecutive_errors = 0
             except ProviderError as e:
-                return {"error": True, "message": str(e), "provider": self.provider.name}
+                consecutive_errors += 1
+                error_msg = str(e)
+                print(f"\n[Error] Provider error (attempt {consecutive_errors}): {error_msg[:200]}")
+                
+                if consecutive_errors > self.retry_on_error:
+                    return {
+                        "error": True,
+                        "message": f"Provider failed after {consecutive_errors} attempts: {error_msg}",
+                        "provider": self.provider.name,
+                        "partial_content": last_content
+                    }
+                
+                time.sleep(2 * consecutive_errors)
+                continue
             
             content = response.get("content", "")
+            last_content = content
+            final_response = response
             
             assistant_message = {"role": "assistant", "content": content}
             self.conversation_history.append(assistant_message)
@@ -118,7 +139,6 @@ class BaseAgent:
             tool_calls = self._parse_tool_calls(content)
             
             if not tool_calls:
-                final_response = response
                 break
             
             tool_results = []
@@ -147,7 +167,10 @@ class BaseAgent:
             self.conversation_history.append(result_message)
         
         if final_response is None:
-            return {"error": True, "message": "Max iterations reached"}
+            return {"error": True, "message": "No response from provider"}
+        
+        if iteration >= self.max_iterations:
+            print(f"\n[Warning] Reached max iterations ({self.max_iterations}), returning last response")
         
         return final_response
     

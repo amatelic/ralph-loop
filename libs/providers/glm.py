@@ -5,6 +5,7 @@ Implements the Z.AI GLM API (supports glm-4.7, glm-5, etc).
 """
 
 import json
+import time
 import urllib.request
 import urllib.error
 from typing import Dict, Any, List, Optional
@@ -19,6 +20,8 @@ class GLMProvider(BaseProvider):
     default_model = "glm-4.7"
     default_base_url = "https://api.z.ai/api/coding/paas/v4"
     max_output_tokens = 32768
+    max_retries = 3
+    retry_delay = 2
     
     def __init__(
         self,
@@ -29,6 +32,67 @@ class GLMProvider(BaseProvider):
     ):
         super().__init__(api_key, model, base_url, **kwargs)
         self.base_url = (base_url or self.default_base_url).rstrip('/')
+    
+    def _make_request(
+        self,
+        url: str,
+        data: bytes,
+        headers: Dict[str, str],
+        timeout: int = 120
+    ) -> Dict[str, Any]:
+        """Make HTTP request with retry logic."""
+        
+        last_error = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    method='POST',
+                    headers=headers
+                )
+                
+                with urllib.request.urlopen(req, timeout=timeout) as response:
+                    response_data = response.read().decode('utf-8')
+                    return json.loads(response_data)
+                    
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode('utf-8') if e.fp else 'No body'
+                
+                if e.code >= 500 or e.code == 429:
+                    last_error = f"GLM API error: {e.code} - {error_body}"
+                    if attempt < self.max_retries - 1:
+                        wait_time = self.retry_delay * (2 ** attempt)
+                        print(f"[GLM] Retryable error {e.code}, waiting {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                raise ProviderError(
+                    f"GLM API error: {e.code} - {error_body}",
+                    provider=self.name,
+                    raw_error=e
+                )
+                
+            except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
+                last_error = str(e)
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (2 ** attempt)
+                    print(f"[GLM] Connection error: {e}, retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                    
+            except json.JSONDecodeError as e:
+                raise ProviderError(
+                    f"Invalid JSON response from GLM: {e}",
+                    provider=self.name,
+                    raw_error=e
+                )
+        
+        raise ProviderError(
+            f"GLM request failed after {self.max_retries} retries: {last_error}",
+            provider=self.name,
+            raw_error=last_error
+        )
     
     def chat(
         self,
@@ -56,56 +120,28 @@ class GLMProvider(BaseProvider):
         
         data = json.dumps(payload).encode('utf-8')
         
-        req = urllib.request.Request(
-            url,
-            data=data,
-            method='POST',
-            headers={
-                'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
-            }
-        )
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
         
-        try:
-            with urllib.request.urlopen(req, timeout=120) as response:
-                response_data = response.read().decode('utf-8')
-                result = json.loads(response_data)
-                
-                if "choices" in result and len(result["choices"]) > 0:
-                    message = result["choices"][0].get("message", {})
-                    content = message.get("content", "")
-                    reasoning = message.get("reasoning_content", "")
-                    return {
-                        "content": content,
-                        "reasoning": reasoning,
-                        "raw": result,
-                        "model": self.model
-                    }
-                else:
-                    raise ProviderError(
-                        "No response from GLM",
-                        provider=self.name,
-                        raw_error=result
-                    )
-                    
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8') if e.fp else 'No body'
+        result = self._make_request(url, data, headers)
+        
+        if "choices" in result and len(result["choices"]) > 0:
+            message = result["choices"][0].get("message", {})
+            content = message.get("content", "")
+            reasoning = message.get("reasoning_content", "")
+            return {
+                "content": content,
+                "reasoning": reasoning,
+                "raw": result,
+                "model": self.model
+            }
+        else:
             raise ProviderError(
-                f"GLM API error: {e.code} - {error_body}",
+                "No response from GLM",
                 provider=self.name,
-                raw_error=e
-            )
-        except json.JSONDecodeError as e:
-            raise ProviderError(
-                f"Invalid JSON response from GLM: {e}",
-                provider=self.name,
-                raw_error=e
-            )
-        except Exception as e:
-            raise ProviderError(
-                f"GLM request failed: {e}",
-                provider=self.name,
-                raw_error=e
+                raw_error=result
             )
     
     def get_model_name(self) -> str:
